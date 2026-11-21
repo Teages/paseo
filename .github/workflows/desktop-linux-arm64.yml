@@ -3,6 +3,7 @@ name: Desktop Linux ARM64
 # Local fork workflow: manual builds of the Paseo desktop app for Linux arm64.
 # Every other workflow is disabled on this fork; trigger this one from the
 # ref you want to package (e.g. local/arm64 tracking an upstream stable tag).
+# Each package format is uploaded as a separate artifact; grab what you install.
 
 on:
   workflow_dispatch:
@@ -57,10 +58,34 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
         run: npm run build:desktop -- --publish never --linux --arm64
 
-      - name: Upload desktop artifacts
+      - name: Upload deb artifact
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-linux-arm64
-          path: ${{ env.DESKTOP_PACKAGE_PATH }}/release/*
+          name: desktop-linux-arm64-deb
+          path: ${{ env.DESKTOP_PACKAGE_PATH }}/release/*.deb
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload rpm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-linux-arm64-rpm
+          path: ${{ env.DESKTOP_PACKAGE_PATH }}/release/*.rpm
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-linux-arm64-appimage
+          path: ${{ env.DESKTOP_PACKAGE_PATH }}/release/*.AppImage
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload tar.gz artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-linux-arm64-targz
+          path: ${{ env.DESKTOP_PACKAGE_PATH }}/release/*.tar.gz
           if-no-files-found: error
           retention-days: 14
