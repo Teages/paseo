@@ -1,0 +1,66 @@
+name: Desktop Linux ARM64
+
+# Local fork workflow: manual builds of the Paseo desktop app for Linux arm64.
+# Every other workflow is disabled on this fork; trigger this one from the
+# ref you want to package (e.g. local/arm64 tracking an upstream stable tag).
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build (defaults to the ref dispatched from)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: desktop-linux-arm64-${{ github.event.inputs.ref || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  DESKTOP_PACKAGE_PATH: packages/desktop
+
+jobs:
+  build:
+    # Free hosted arm64 runner for public repositories.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.ref || github.ref_name }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@boudra"
+
+      - name: Install JS dependencies
+        run: node scripts/npm-retry.mjs ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Linux arm64 desktop artifacts
+        env:
+          EP_GH_IGNORE_TIME: true
+          # Metro bundling of the web app needs a large heap.
+          NODE_OPTIONS: --max-old-space-size=8192
+        run: npm run build:desktop -- --publish never --linux --arm64
+
+      - name: Upload desktop artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-linux-arm64
+          path: ${{ env.DESKTOP_PACKAGE_PATH }}/release/*
+          if-no-files-found: error
+          retention-days: 14
